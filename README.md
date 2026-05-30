@@ -10,7 +10,14 @@
 ## MVPの目的
 2D人型ラグドールを使って、体型・質量分布・物理パラメータが落下・押し出し・着地挙動に与える影響を観察できる最小構成のWebアプリを作る
 
-## MVPの完成条件
+## 用語
+
+- Ragdoll: 複数の剛体パーツを関節制約で接続した人型モデル
+- BodyPart: Head, Torso, Pelvisなどの個別剛体
+- Preset: 体型・質量・物理パラメータをまとめた設定
+- Center of Mass: 各BodyPartの質量と位置から求める全身の重心
+
+## MVP Scope
 ### 必須
 - ブラウザで起動できる
 - 2D人型ラグドールが表示される
@@ -44,6 +51,8 @@
 ## MVP完了条件
 
 - `npm run dev` でブラウザ上にアプリが起動する
+- `npm run build` が成功する
+- `npm run typecheck` が成功する
 - ラグドールが表示され、重力で落下する
 - 床と衝突して停止または反発する
 - Resetボタンで初期状態に戻る
@@ -145,10 +154,10 @@ type BodyPartName =
 
 | アクション             | 内容        |
 | ----------------- | --------- |
-| Drop              | 上から落とす    |
-| Push Left / Right | 横方向に力を加える |
-| Launch Up         | 上方向に少し飛ばす |
-| Reset Pose        | 初期姿勢に戻す   |
+| Drop              | ラグドールを画面上部の落下開始位置に再配置する    |
+| Push Left / Right | Torso または Pelvis に水平方向の外力を加える |
+| Launch Up         | Torso または Pelvis に上方向の外力を加える |
+| Reset        | 現在のラグドールを削除し、選択中のプリセットとパラメータで初期状態に再生成する   |
 
 ### v1での追加アイテム
 
@@ -168,12 +177,17 @@ type BodyPartName =
 | Body Labels     | 頭、胴体、腕などの名前 |
 | Skeleton Lines  | 関節接続線       |
 
-### v1での追加アイテム
+### MVP Optional
 
 | 表示                  | 内容              |
 | ------------------- | --------------- |
 | Velocity Vector | 各部位または全身の速度 |
 | Contact Points  | 床や障害物との接触点  |
+
+### v1での追加アイテム
+
+| 表示                  | 内容              |
+| ------------------- | --------------- |
 | Angular Velocity    | 回転速度            |
 | Impact Force Approx | 衝突の強さの近似        |
 | Joint Stress        | 関節制約にかかる負荷      |
@@ -192,6 +206,7 @@ type BodyPartName =
 
 ## 想定ディレクトリ構成
 
+```text
 src/
   main.ts
   app/
@@ -210,7 +225,17 @@ src/
     CenterOfMass.ts
     Metrics.ts
   types/
-    RagdollTypes.ts+
+    RagdollTypes.ts
+```
+
+## 開発コマンド
+
+```bash
+npm install
+npm run dev
+npm run build
+npm run typecheck
+```
 
 ## 開発ステップ
 
@@ -222,3 +247,10 @@ src/
 6. GUIパラメータ調整
 7. プリセット切り替え
 8. Velocity Vector / Contact Points表示
+
+## 既知の制約
+
+- matter-jsのConstraintを利用するため、人体関節の厳密な角度制限や筋力制御はMVPでは扱わない。
+- 体型パラメータ変更時は既存Bodyを変形せず、ラグドールを再生成する。
+- MVPでは物理挙動の定量的な正確性より、挙動の観察と可視化を優先する。
+
