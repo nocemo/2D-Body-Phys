@@ -1,7 +1,11 @@
+import { PixiRenderer } from "../rendering/PixiRenderer";
+
 export class App {
+  private readonly renderer = new PixiRenderer();
+
   constructor(private readonly root: HTMLElement) {}
 
-  mount(): void {
+  async mount(): Promise<void> {
     this.root.innerHTML = "";
 
     const page = document.createElement("main");
@@ -10,10 +14,17 @@ export class App {
     const title = document.createElement("h1");
     title.textContent = "2D-Body-Phys";
 
-    const status = document.createElement("p");
-    status.textContent = "Project initialized.";
+    const viewport = document.createElement("section");
+    viewport.className = "simulation-viewport";
+    viewport.setAttribute("aria-label", "Simulation viewport");
 
-    page.append(title, status);
+    page.append(title, viewport);
     this.root.append(page);
+
+    await this.renderer.mount(viewport);
+  }
+
+  destroy(): void {
+    this.renderer.destroy();
   }
 }
