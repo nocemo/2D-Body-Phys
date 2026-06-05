@@ -32,6 +32,7 @@ export class App {
     this.root.append(page);
 
     await this.renderer.mount(viewport);
+    this.renderer.renderBodies(this.physicsWorld.getBodies());
     this.startPhysicsLoop();
   }
 
@@ -57,6 +58,7 @@ export class App {
     this.lastFrameTimestamp = timestamp;
 
     const snapshot = this.physicsWorld.step(deltaMs);
+    this.renderer.renderBodies(this.physicsWorld.getBodies());
     this.updatePhysicsStatus(snapshot);
 
     if (snapshot.hasFloorContact && !this.hasLoggedFloorContact) {

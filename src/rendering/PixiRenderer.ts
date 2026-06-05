@@ -1,10 +1,12 @@
+import type { Body } from "matter-js";
 import { Application, Container, Graphics, Text } from "pixi.js";
 
 export class PixiRenderer {
   private app: Application | null = null;
   private scene: Container | null = null;
+  private latestBodies: readonly Body[] = [];
   private readonly resizeObserver = new ResizeObserver(() => {
-    this.drawTestScene();
+    this.drawScene();
   });
 
   async mount(host: HTMLElement): Promise<void> {
@@ -25,7 +27,12 @@ export class PixiRenderer {
     host.append(app.canvas);
 
     this.resizeObserver.observe(host);
-    this.drawTestScene();
+    this.drawScene();
+  }
+
+  renderBodies(bodies: readonly Body[]): void {
+    this.latestBodies = bodies;
+    this.drawScene();
   }
 
   destroy(): void {
@@ -40,7 +47,7 @@ export class PixiRenderer {
     this.scene = null;
   }
 
-  private drawTestScene(): void {
+  private drawScene(): void {
     if (!this.app || !this.scene) {
       return;
     }
@@ -55,23 +62,8 @@ export class PixiRenderer {
       .rect(0, height - 72, width, 72)
       .fill(0xdce7f3);
 
-    const testObject = new Graphics();
-    testObject
-      .roundRect(width / 2 - 52, height / 2 - 36, 104, 72, 10)
-      .fill(0x2f80ed)
-      .circle(width / 2, height / 2 - 88, 34)
-      .fill(0xf2c94c);
-
-    const centerMarker = new Graphics();
-    centerMarker
-      .moveTo(width / 2 - 18, height / 2)
-      .lineTo(width / 2 + 18, height / 2)
-      .moveTo(width / 2, height / 2 - 18)
-      .lineTo(width / 2, height / 2 + 18)
-      .stroke({ color: 0xeb5757, width: 3 });
-
     const label = new Text({
-      text: "PixiJS Render Shell",
+      text: "matter-js Debug Render",
       style: {
         fill: 0x24292f,
         fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
@@ -82,6 +74,40 @@ export class PixiRenderer {
     label.anchor.set(0.5);
     label.position.set(width / 2, 36);
 
-    this.scene.addChild(background, testObject, centerMarker, label);
+    this.scene.addChild(background, ...this.latestBodies.map((body) => this.drawBody(body)), label);
+  }
+
+  private drawBody(body: Body): Graphics {
+    const graphic = new Graphics();
+    const fillColor = body.isStatic ? 0x8aa2bd : 0x2f80ed;
+    const strokeColor = body.isStatic ? 0x5d748c : 0x1f5fa8;
+
+    if (body.circleRadius) {
+      graphic.circle(body.position.x, body.position.y, body.circleRadius).fill(fillColor);
+      graphic
+        .moveTo(body.position.x, body.position.y)
+        .lineTo(
+          body.position.x + Math.cos(body.angle) * body.circleRadius,
+          body.position.y + Math.sin(body.angle) * body.circleRadius,
+        )
+        .stroke({ color: 0xffffff, width: 2 });
+
+      return graphic;
+    }
+
+    const [firstVertex, ...remainingVertices] = body.vertices;
+
+    if (!firstVertex) {
+      return graphic;
+    }
+
+    graphic.moveTo(firstVertex.x, firstVertex.y);
+
+    for (const vertex of remainingVertices) {
+      graphic.lineTo(vertex.x, vertex.y);
+    }
+
+    graphic.closePath().fill(fillColor).stroke({ color: strokeColor, width: 2 });
+    return graphic;
   }
 }
