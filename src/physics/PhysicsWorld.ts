@@ -1,4 +1,6 @@
 import { Bodies, Composite, Engine, type Body } from "matter-js";
+import { RagdollFactory } from "./RagdollFactory";
+import { RAGDOLL_PRESETS } from "../ui/presets";
 
 type PhysicsWorldOptions = {
   gravityY?: number;
@@ -17,13 +19,13 @@ export type PhysicsSnapshot = {
 const DEFAULT_WIDTH = 800;
 const DEFAULT_HEIGHT = 480;
 const FLOOR_HEIGHT = 48;
-const TEST_BODY_HEIGHT = 56;
 const MAX_STEP_MS = 1000 / 30;
 
 export class PhysicsWorld {
   private readonly engine = Engine.create();
   private readonly floor: Body;
-  private readonly testBody: Body;
+  private readonly ragdoll = new RagdollFactory().create(RAGDOLL_PRESETS[0]);
+  private readonly trackedBody: Body;
   private elapsedMs = 0;
   private hasFloorContact = false;
 
@@ -31,7 +33,7 @@ export class PhysicsWorld {
     const width = options.width ?? DEFAULT_WIDTH;
     const height = options.height ?? DEFAULT_HEIGHT;
 
-    this.engine.gravity.y = options.gravityY ?? 1;
+    this.engine.gravity.y = options.gravityY ?? RAGDOLL_PRESETS[0].physics.gravity;
 
     this.floor = Bodies.rectangle(width / 2, height - FLOOR_HEIGHT / 2, width, FLOOR_HEIGHT, {
       isStatic: true,
@@ -39,13 +41,10 @@ export class PhysicsWorld {
       friction: 0.8,
     });
 
-    this.testBody = Bodies.rectangle(width / 2, 80, 72, TEST_BODY_HEIGHT, {
-      label: "DynamicTestBody",
-      friction: 0.4,
-      restitution: 0.15,
-    });
+    const torso = this.ragdoll.getBodyPart("Torso");
+    this.trackedBody = torso?.body ?? this.ragdoll.getBodies()[0];
 
-    Composite.add(this.engine.world, [this.floor, this.testBody]);
+    Composite.add(this.engine.world, [this.floor, ...this.ragdoll.getBodies()]);
   }
 
   step(deltaMs: number): PhysicsSnapshot {
@@ -53,7 +52,7 @@ export class PhysicsWorld {
     Engine.update(this.engine, stepMs);
 
     this.elapsedMs += stepMs;
-    this.hasFloorContact = this.testBody.position.y >= this.floorTopY - TEST_BODY_HEIGHT / 2 - 0.5;
+    this.hasFloorContact = this.ragdoll.getBodies().some((body) => body.bounds.max.y >= this.floorTopY - 0.5);
 
     return this.getSnapshot();
   }
@@ -65,8 +64,8 @@ export class PhysicsWorld {
   getSnapshot(): PhysicsSnapshot {
     return {
       bodyCount: this.getBodies().length,
-      dynamicBodyY: this.testBody.position.y,
-      dynamicBodyVelocityY: this.testBody.velocity.y,
+      dynamicBodyY: this.trackedBody.position.y,
+      dynamicBodyVelocityY: this.trackedBody.velocity.y,
       elapsedMs: this.elapsedMs,
       hasFloorContact: this.hasFloorContact,
     };
