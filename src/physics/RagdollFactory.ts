@@ -1,6 +1,6 @@
-import { Bodies, Body, type IBodyDefinition } from "matter-js";
-import { RagdollModel, type RagdollBodyPart } from "./RagdollModel";
-import type { BodyPartName, MassParams, RagdollPreset } from "../types/RagdollTypes";
+import { Bodies, Body, Constraint, type IBodyDefinition, type Vector } from "matter-js";
+import { RagdollModel, type RagdollBodyPart, type RagdollJoint } from "./RagdollModel";
+import type { BodyPartName, JointName, MassParams, RagdollPreset } from "../types/RagdollTypes";
 
 type RagdollFactoryOptions = {
   x?: number;
@@ -14,6 +14,14 @@ type RectanglePartSpec = {
   width: number;
   height: number;
   massRatio: number;
+};
+
+type JointSpec = {
+  name: JointName;
+  bodyA: BodyPartName;
+  bodyB: BodyPartName;
+  pointA: Vector;
+  pointB: Vector;
 };
 
 const BASE_HEAD_RADIUS = 24;
@@ -35,6 +43,7 @@ export class RagdollFactory {
     const originX = options.x ?? 400;
     const originY = options.y ?? 96;
     const { body, mass, physics } = preset;
+    const collisionGroup = Body.nextGroup(true);
 
     const heightScale = body.heightScale;
     const torsoWidth = BASE_TORSO_WIDTH * body.shoulderWidth;
@@ -64,6 +73,7 @@ export class RagdollFactory {
           headRadius,
           mass.headMassRatio,
           preset,
+          collisionGroup,
         ),
       },
       ...this.createRectangleParts(
@@ -150,22 +160,104 @@ export class RagdollFactory {
           },
         ],
         preset,
+        collisionGroup,
       ),
     ];
 
-    return new RagdollModel(parts);
+    const joints = this.createJoints(
+      [
+        {
+          name: "Neck",
+          bodyA: "Head",
+          bodyB: "Torso",
+          pointA: { x: 0, y: headRadius * 0.75 },
+          pointB: { x: 0, y: -torsoHeight / 2 },
+        },
+        {
+          name: "LeftShoulder",
+          bodyA: "Torso",
+          bodyB: "LeftUpperArm",
+          pointA: { x: -torsoWidth / 2, y: -torsoHeight * 0.32 },
+          pointB: { x: 0, y: -upperArmHeight / 2 },
+        },
+        {
+          name: "RightShoulder",
+          bodyA: "Torso",
+          bodyB: "RightUpperArm",
+          pointA: { x: torsoWidth / 2, y: -torsoHeight * 0.32 },
+          pointB: { x: 0, y: -upperArmHeight / 2 },
+        },
+        {
+          name: "LeftElbow",
+          bodyA: "LeftUpperArm",
+          bodyB: "LeftLowerArm",
+          pointA: { x: 0, y: upperArmHeight / 2 },
+          pointB: { x: 0, y: -lowerArmHeight / 2 },
+        },
+        {
+          name: "RightElbow",
+          bodyA: "RightUpperArm",
+          bodyB: "RightLowerArm",
+          pointA: { x: 0, y: upperArmHeight / 2 },
+          pointB: { x: 0, y: -lowerArmHeight / 2 },
+        },
+        {
+          name: "Waist",
+          bodyA: "Torso",
+          bodyB: "Pelvis",
+          pointA: { x: 0, y: torsoHeight / 2 },
+          pointB: { x: 0, y: -pelvisHeight / 2 },
+        },
+        {
+          name: "LeftHip",
+          bodyA: "Pelvis",
+          bodyB: "LeftUpperLeg",
+          pointA: { x: -legOffsetX, y: pelvisHeight / 2 },
+          pointB: { x: 0, y: -upperLegHeight / 2 },
+        },
+        {
+          name: "RightHip",
+          bodyA: "Pelvis",
+          bodyB: "RightUpperLeg",
+          pointA: { x: legOffsetX, y: pelvisHeight / 2 },
+          pointB: { x: 0, y: -upperLegHeight / 2 },
+        },
+        {
+          name: "LeftKnee",
+          bodyA: "LeftUpperLeg",
+          bodyB: "LeftLowerLeg",
+          pointA: { x: 0, y: upperLegHeight / 2 },
+          pointB: { x: 0, y: -lowerLegHeight / 2 },
+        },
+        {
+          name: "RightKnee",
+          bodyA: "RightUpperLeg",
+          bodyB: "RightLowerLeg",
+          pointA: { x: 0, y: upperLegHeight / 2 },
+          pointB: { x: 0, y: -lowerLegHeight / 2 },
+        },
+      ],
+      parts,
+      preset,
+    );
+
+    return new RagdollModel(parts, joints);
   }
 
-  private createRectangleParts(specs: readonly RectanglePartSpec[], preset: RagdollPreset): RagdollBodyPart[] {
+  private createRectangleParts(
+    specs: readonly RectanglePartSpec[],
+    preset: RagdollPreset,
+    collisionGroup: number,
+  ): RagdollBodyPart[] {
     return specs.map((spec) => ({
       name: spec.name,
-      body: this.createRectanglePart(spec, preset),
+      body: this.createRectanglePart(spec, preset, collisionGroup),
     }));
   }
 
-  private createRectanglePart(spec: RectanglePartSpec, preset: RagdollPreset): Body {
+  private createRectanglePart(spec: RectanglePartSpec, preset: RagdollPreset, collisionGroup: number): Body {
     const body = Bodies.rectangle(spec.x, spec.y, spec.width, spec.height, {
-      ...this.createBodyOptions(spec.name, preset),
+      ...this.createBodyOptions(spec.name, preset, collisionGroup),
     });
     this.applyMass(body, spec.massRatio, preset.mass);
     return body;
@@ -178,17 +270,21 @@ export class RagdollFactory {
     radius: number,
     massRatio: number,
     preset: RagdollPreset,
+    collisionGroup: number,
   ): Body {
     const body = Bodies.circle(x, y, radius, {
-      ...this.createBodyOptions(name, preset),
+      ...this.createBodyOptions(name, preset, collisionGroup),
     });
     this.applyMass(body, massRatio, preset.mass);
     return body;
   }
 
-  private createBodyOptions(label: BodyPartName, preset: RagdollPreset): IBodyDefinition {
+  private createBodyOptions(label: BodyPartName, preset: RagdollPreset, collisionGroup: number): IBodyDefinition {
     return {
       label,
+      collisionFilter: {
+        group: collisionGroup,
+      },
       friction: preset.physics.friction,
       frictionAir: preset.physics.airFriction,
       restitution: preset.physics.restitution,
@@ -197,5 +293,40 @@ export class RagdollFactory {
 
   private applyMass(body: Body, massRatio: number, mass: MassParams): void {
     Body.setMass(body, body.mass * mass.globalMassScale * massRatio);
+  }
+
+  private createJoints(
+    specs: readonly JointSpec[],
+    parts: readonly RagdollBodyPart[],
+    preset: RagdollPreset,
+  ): RagdollJoint[] {
+    return specs.map((spec) => {
+      const bodyA = this.requireBodyPart(parts, spec.bodyA);
+      const bodyB = this.requireBodyPart(parts, spec.bodyB);
+
+      return {
+        name: spec.name,
+        constraint: Constraint.create({
+          label: spec.name,
+          bodyA,
+          bodyB,
+          pointA: spec.pointA,
+          pointB: spec.pointB,
+          length: 0,
+          stiffness: preset.physics.jointStiffness,
+          damping: preset.physics.jointDamping,
+        }),
+      };
+    });
+  }
+
+  private requireBodyPart(parts: readonly RagdollBodyPart[], name: BodyPartName): Body {
+    const part = parts.find((candidate) => candidate.name === name);
+
+    if (!part) {
+      throw new Error(`Ragdoll body part was not found: ${name}`);
+    }
+
+    return part.body;
   }
 }

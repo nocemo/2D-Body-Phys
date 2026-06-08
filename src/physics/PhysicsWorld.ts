@@ -44,7 +44,7 @@ export class PhysicsWorld {
     const torso = this.ragdoll.getBodyPart("Torso");
     this.trackedBody = torso?.body ?? this.ragdoll.getBodies()[0];
 
-    Composite.add(this.engine.world, [this.floor, ...this.ragdoll.getBodies()]);
+    Composite.add(this.engine.world, [this.floor, ...this.ragdoll.getBodies(), ...this.ragdoll.getConstraints()]);
   }
 
   step(deltaMs: number): PhysicsSnapshot {
