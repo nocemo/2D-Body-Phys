@@ -11,6 +11,18 @@ export type BodyPartName =
   | "RightUpperLeg"
   | "RightLowerLeg";
 
+export type JointName =
+  | "Neck"
+  | "LeftShoulder"
+  | "RightShoulder"
+  | "LeftElbow"
+  | "RightElbow"
+  | "Waist"
+  | "LeftHip"
+  | "RightHip"
+  | "LeftKnee"
+  | "RightKnee";
+
 export type BodyShapeParams = {
   heightScale: number;
   torsoScale: number;
