@@ -1,9 +1,11 @@
 import { PhysicsWorld } from "../physics/PhysicsWorld";
 import { PixiRenderer } from "../rendering/PixiRenderer";
+import { Controls } from "../ui/Controls";
 
 export class App {
   private readonly physicsWorld = new PhysicsWorld();
   private readonly renderer = new PixiRenderer();
+  private controls: Controls | null = null;
   private animationFrameId: number | null = null;
   private lastFrameTimestamp: number | null = null;
   private physicsStatus: HTMLParagraphElement | null = null;
@@ -31,8 +33,22 @@ export class App {
     page.append(title, viewport, physicsStatus);
     this.root.append(page);
 
+    this.controls = new Controls({
+      onReset: (preset) => {
+        this.physicsWorld.reset(preset);
+        this.hasLoggedFloorContact = false;
+      },
+      onDrop: () => {
+        this.physicsWorld.drop();
+        this.hasLoggedFloorContact = false;
+      },
+      onPushLeft: () => this.physicsWorld.pushLeft(),
+      onPushRight: () => this.physicsWorld.pushRight(),
+      onLaunchUp: () => this.physicsWorld.launchUp(),
+    });
+
     await this.renderer.mount(viewport);
-    this.renderer.renderBodies(this.physicsWorld.getBodies());
+    this.renderPhysicsState(this.physicsWorld.getSnapshot());
     this.startPhysicsLoop();
   }
 
@@ -42,6 +58,8 @@ export class App {
       this.animationFrameId = null;
     }
 
+    this.controls?.destroy();
+    this.controls = null;
     this.renderer.destroy();
     this.physicsWorld.destroy();
   }
@@ -58,15 +76,23 @@ export class App {
     this.lastFrameTimestamp = timestamp;
 
     const snapshot = this.physicsWorld.step(deltaMs);
-    this.renderer.renderBodies(this.physicsWorld.getBodies());
+    this.renderPhysicsState(snapshot);
     this.updatePhysicsStatus(snapshot);
 
     if (snapshot.hasFloorContact && !this.hasLoggedFloorContact) {
       this.hasLoggedFloorContact = true;
-      console.info("Dynamic test body contacted the static floor.", snapshot);
+      console.info("Ragdoll contacted the static floor.", snapshot);
     }
 
     this.startPhysicsLoop();
+  }
+
+  private renderPhysicsState(snapshot: ReturnType<PhysicsWorld["getSnapshot"]>): void {
+    this.renderer.renderDebugState(
+      this.physicsWorld.getBodies(),
+      this.physicsWorld.getConstraints(),
+      snapshot.centerOfMass,
+    );
   }
 
   private updatePhysicsStatus(snapshot: ReturnType<PhysicsWorld["getSnapshot"]>): void {
@@ -76,8 +102,9 @@ export class App {
 
     this.physicsStatus.textContent = [
       `Physics bodies: ${snapshot.bodyCount}`,
-      `test body y: ${snapshot.dynamicBodyY.toFixed(1)}`,
+      `torso y: ${snapshot.dynamicBodyY.toFixed(1)}`,
       `vy: ${snapshot.dynamicBodyVelocityY.toFixed(2)}`,
+      `center of mass: (${snapshot.centerOfMass.x.toFixed(1)}, ${snapshot.centerOfMass.y.toFixed(1)})`,
       `floor contact: ${snapshot.hasFloorContact ? "yes" : "no"}`,
     ].join(" / ");
   }

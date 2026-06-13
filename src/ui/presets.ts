@@ -71,3 +71,12 @@ export const RAGDOLL_PRESETS: readonly RagdollPreset[] = [
     physics: { ...defaultPhysics },
   },
 ];
+
+export function clonePreset(preset: RagdollPreset): RagdollPreset {
+  return {
+    name: preset.name,
+    body: { ...preset.body },
+    mass: { ...preset.mass },
+    physics: { ...preset.physics },
+  };
+}
