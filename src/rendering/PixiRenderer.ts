@@ -1,10 +1,12 @@
-import type { Body } from "matter-js";
+import type { Body, Constraint, Vector } from "matter-js";
 import { Application, Container, Graphics, Text } from "pixi.js";
 
 export class PixiRenderer {
   private app: Application | null = null;
   private scene: Container | null = null;
   private latestBodies: readonly Body[] = [];
+  private latestConstraints: readonly Constraint[] = [];
+  private latestCenterOfMass: Vector | null = null;
   private readonly resizeObserver = new ResizeObserver(() => {
     this.drawScene();
   });
@@ -30,8 +32,14 @@ export class PixiRenderer {
     this.drawScene();
   }
 
-  renderBodies(bodies: readonly Body[]): void {
+  renderDebugState(
+    bodies: readonly Body[],
+    constraints: readonly Constraint[],
+    centerOfMass: Vector,
+  ): void {
     this.latestBodies = bodies;
+    this.latestConstraints = constraints;
+    this.latestCenterOfMass = centerOfMass;
     this.drawScene();
   }
 
@@ -63,7 +71,7 @@ export class PixiRenderer {
       .fill(0xdce7f3);
 
     const label = new Text({
-      text: "matter-js Debug Render",
+      text: "matter-js Ragdoll Debug Render",
       style: {
         fill: 0x24292f,
         fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
@@ -74,7 +82,14 @@ export class PixiRenderer {
     label.anchor.set(0.5);
     label.position.set(width / 2, 36);
 
-    this.scene.addChild(background, ...this.latestBodies.map((body) => this.drawBody(body)), label);
+    this.scene.addChild(
+      background,
+      this.drawSkeleton(),
+      ...this.latestBodies.map((body) => this.drawBody(body)),
+      ...this.latestBodies.filter((body) => !body.isStatic).map((body) => this.drawBodyLabel(body)),
+      this.drawCenterOfMass(),
+      label,
+    );
   }
 
   private drawBody(body: Body): Graphics {
@@ -108,6 +123,64 @@ export class PixiRenderer {
     }
 
     graphic.closePath().fill(fillColor).stroke({ color: strokeColor, width: 2 });
+    return graphic;
+  }
+
+  private drawSkeleton(): Graphics {
+    const graphic = new Graphics();
+
+    for (const constraint of this.latestConstraints) {
+      if (!constraint.bodyA || !constraint.bodyB) {
+        continue;
+      }
+
+      const pointA = {
+        x: constraint.bodyA.position.x + constraint.pointA.x,
+        y: constraint.bodyA.position.y + constraint.pointA.y,
+      };
+      const pointB = {
+        x: constraint.bodyB.position.x + constraint.pointB.x,
+        y: constraint.bodyB.position.y + constraint.pointB.y,
+      };
+
+      graphic.moveTo(pointA.x, pointA.y).lineTo(pointB.x, pointB.y).stroke({ color: 0x111827, width: 3, alpha: 0.65 });
+    }
+
+    return graphic;
+  }
+
+  private drawBodyLabel(body: Body): Text {
+    const text = new Text({
+      text: body.label,
+      style: {
+        fill: 0x111827,
+        fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+        fontSize: 11,
+        fontWeight: "600",
+      },
+    });
+    text.anchor.set(0.5);
+    text.position.set(body.position.x, body.position.y);
+    return text;
+  }
+
+  private drawCenterOfMass(): Graphics {
+    const graphic = new Graphics();
+
+    if (!this.latestCenterOfMass) {
+      return graphic;
+    }
+
+    const { x, y } = this.latestCenterOfMass;
+    graphic
+      .circle(x, y, 8)
+      .fill(0xff4d4f)
+      .moveTo(x - 14, y)
+      .lineTo(x + 14, y)
+      .moveTo(x, y - 14)
+      .lineTo(x, y + 14)
+      .stroke({ color: 0x9f1239, width: 2 });
+
     return graphic;
   }
 }
