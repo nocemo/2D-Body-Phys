@@ -23,6 +23,7 @@ export type PhysicsSnapshot = {
 const DEFAULT_WIDTH = 800;
 const DEFAULT_HEIGHT = 480;
 const FLOOR_HEIGHT = 48;
+const RAGDOLL_SPAWN_CLEARANCE = 24;
 const MAX_STEP_MS = 1000 / 30;
 const PUSH_FORCE = 0.055;
 const LAUNCH_FORCE = 0.085;
@@ -51,7 +52,7 @@ export class PhysicsWorld {
       friction: this.selectedPreset.physics.friction,
     });
 
-    this.ragdoll = this.ragdollFactory.create(this.selectedPreset);
+    this.ragdoll = this.createRagdollAboveFloor(this.selectedPreset);
     this.trackedBody = this.getTrackedBody();
     Composite.add(this.engine.world, [this.floor, ...this.ragdoll.getBodies(), ...this.ragdoll.getConstraints()]);
   }
@@ -72,7 +73,7 @@ export class PhysicsWorld {
     this.selectedPreset = clonePreset(preset);
     this.engine.gravity.y = this.selectedPreset.physics.gravity;
     this.floor.friction = this.selectedPreset.physics.friction;
-    this.ragdoll = this.ragdollFactory.create(this.selectedPreset);
+    this.ragdoll = this.createRagdollAboveFloor(this.selectedPreset);
     this.trackedBody = this.getTrackedBody();
     this.elapsedMs = 0;
     this.hasFloorContact = false;
@@ -130,6 +131,20 @@ export class PhysicsWorld {
   private getTrackedBody(): Body {
     const torso = this.ragdoll.getBodyPart("Torso");
     return torso?.body ?? this.ragdoll.getBodies()[0];
+  }
+
+  private createRagdollAboveFloor(preset: RagdollPreset): RagdollModel {
+    const ragdoll = this.ragdollFactory.create(preset);
+    const bodies = ragdoll.getBodies();
+    const lowestBodyY = Math.max(...bodies.map((body) => body.bounds.max.y));
+    const targetLowestBodyY = this.floorTopY - RAGDOLL_SPAWN_CLEARANCE;
+    const offsetY = targetLowestBodyY - lowestBodyY;
+
+    for (const body of bodies) {
+      Body.translate(body, { x: 0, y: offsetY });
+    }
+
+    return ragdoll;
   }
 
   private get floorTopY(): number {
