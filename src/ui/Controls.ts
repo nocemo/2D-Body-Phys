@@ -44,34 +44,49 @@ export class Controls {
   }
 
   private buildGui(): void {
+    this.buildPresetControls();
+    this.buildActionControls();
+    this.buildParameterControls();
+  }
+
+  private buildPresetControls(): void {
     const actions = {
-      Reset: () => this.callbacks.onReset(this.createSelectedPreset()),
+      Reset: () => this.callbacks.onReset(this.createCurrentPreset()),
+    };
+
+    const presetFolder = this.gui.addFolder("Preset");
+    presetFolder
+      .add(this.state, "presetName", RAGDOLL_PRESETS.map((preset) => preset.name))
+      .name("Preset")
+      .onChange((presetName: string) => {
+        this.applyPresetToControls(presetName);
+      });
+    presetFolder.add(actions, "Reset");
+  }
+
+  private buildActionControls(): void {
+    const actions = {
       Drop: () => this.callbacks.onDrop(),
       "Push Left": () => this.callbacks.onPushLeft(),
       "Push Right": () => this.callbacks.onPushRight(),
       "Launch Up": () => this.callbacks.onLaunchUp(),
     };
 
-    this.gui
-      .add(this.state, "presetName", RAGDOLL_PRESETS.map((preset) => preset.name))
-      .name("Preset")
-      .onChange((presetName: string) => {
-        this.applyPresetToControls(presetName);
-      });
+    const actionsFolder = this.gui.addFolder("Actions");
+    actionsFolder.add(actions, "Drop");
+    actionsFolder.add(actions, "Push Left");
+    actionsFolder.add(actions, "Push Right");
+    actionsFolder.add(actions, "Launch Up");
+  }
 
-    this.gui.add(actions, "Reset");
-    this.gui.add(actions, "Drop");
-    this.gui.add(actions, "Push Left");
-    this.gui.add(actions, "Push Right");
-    this.gui.add(actions, "Launch Up");
-
-    const physicsFolder = this.gui.addFolder("Parameters applied on Reset");
-    physicsFolder.add(this.state, "gravity", 0, 2, 0.05).name("gravity");
-    physicsFolder.add(this.state, "friction", 0, 1, 0.05).name("friction");
-    physicsFolder.add(this.state, "heightScale", 0.7, 1.35, 0.01).name("heightScale");
-    physicsFolder.add(this.state, "legScale", 0.75, 1.45, 0.01).name("legScale");
-    physicsFolder.add(this.state, "upperBodyMassRatio", 0.6, 1.7, 0.05).name("upperBodyMassRatio");
-    physicsFolder.add(this.state, "jointStiffness", 0.1, 1, 0.05).name("jointStiffness");
+  private buildParameterControls(): void {
+    const parametersFolder = this.gui.addFolder("Parameters applied on Reset");
+    parametersFolder.add(this.state, "gravity", 0, 2, 0.05).name("gravity");
+    parametersFolder.add(this.state, "friction", 0, 1, 0.05).name("friction");
+    parametersFolder.add(this.state, "heightScale", 0.7, 1.35, 0.01).name("heightScale");
+    parametersFolder.add(this.state, "legScale", 0.75, 1.45, 0.01).name("legScale");
+    parametersFolder.add(this.state, "upperBodyMassRatio", 0.6, 1.7, 0.05).name("upperBodyMassRatio");
+    parametersFolder.add(this.state, "jointStiffness", 0.1, 1, 0.05).name("jointStiffness");
   }
 
   private applyPresetToControls(presetName: string): void {
@@ -85,7 +100,7 @@ export class Controls {
     this.gui.controllersRecursive().forEach((controller) => controller.updateDisplay());
   }
 
-  private createSelectedPreset(): RagdollPreset {
+  private createCurrentPreset(): RagdollPreset {
     const basePreset = RAGDOLL_PRESETS.find((preset) => preset.name === this.state.presetName) ?? RAGDOLL_PRESETS[0];
     const preset = clonePreset(basePreset);
 
