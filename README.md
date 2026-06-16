@@ -18,16 +18,19 @@
 - Center of Mass: 各BodyPartの質量と位置から求める全身の重心
 
 ## MVP Scope
-### 必須
+### 実装済みの必須項目
 - ブラウザで起動できる
 - 2D人型ラグドールが表示される
 - 床と衝突する
 - Resetできる
-- Pushできる
+- Dropできる
+- Push Left / Push Rightできる
+- Launch Upできる
 - 重心が表示される
 - 体型プリセットを切り替えられる
 - 少なくとも3つのパラメータをGUIで変更できる
-### できれば
+
+### 未実装のOptional項目
 - 速度ベクトル表示
 - 接触点表示
 - JSONプリセットの読み込み
@@ -48,18 +51,22 @@
 - Unreal Engine連携
 - エディタ拡張・プラグイン化
 
-## MVP完了条件
+## MVP完了条件と現在の状態
 
-- `npm run dev` でブラウザ上にアプリが起動する
-- `npm run build` が成功する
-- `npm run typecheck` が成功する
-- ラグドールが表示され、重力で落下する
-- 床と衝突して停止または反発する
-- Resetボタンで初期状態に戻る
-- Push Left / Push Rightで胴体に外力を加えられる
-- 全身のCenter of Massが画面上に表示される
-- GUIから少なくとも3つのパラメータを変更できる
-- プリセットを選択してResetすると体型・質量設定が反映される
+| 項目 | 状態 |
+| --- | --- |
+| `npm run dev` でブラウザ上にアプリが起動する | 実装済み |
+| `npm run build` が成功する | 実装済み |
+| `npm run typecheck` が成功する | 実装済み |
+| ラグドールが表示され、重力で落下する | 実装済み |
+| 床と衝突して停止または反発する | 実装済み |
+| Resetで初期状態に戻る | 実装済み |
+| Dropで画面上部付近から落下を開始する | 実装済み |
+| Push Left / Push Rightで胴体に外力を加えられる | 実装済み |
+| Launch Upで胴体に上方向の外力を加えられる | 実装済み |
+| 全身のCenter of Massが画面上に表示される | 実装済み |
+| GUIから少なくとも3つのパラメータを変更できる | 実装済み |
+| プリセットを選択してResetすると体型・質量設定が反映される | 実装済み |
 
 ## 技術構成
 - TypeScript: アプリケーション全体の実装言語
@@ -237,6 +244,16 @@ npm run build
 npm run typecheck
 ```
 
+## 手動確認手順
+
+1. `npm run dev -- --host 127.0.0.1 --port 5173` を実行する
+2. ブラウザで `http://127.0.0.1:5173` を開く
+3. ラグドールが表示され、重力で落下して床と衝突することを確認する
+4. lil-guiの `Preset` でプリセットを変更し、`Reset` で体型が反映されることを確認する
+5. `Actions` の `Drop` / `Push Left` / `Push Right` / `Launch Up` が動作することを確認する
+6. `Parameters applied on Reset` の `gravity`、`friction`、`heightScale` などを変更し、次の `Reset` で反映されることを確認する
+7. Center of Mass、Body Labels、Skeleton Linesがラグドールの動きに追従して表示されることを確認する
+
 ## 開発ステップ
 
 1. Vite + TypeScript + PixiJS + matter-js の初期セットアップ
@@ -246,7 +263,7 @@ npm run typecheck
 5. Center of Mass表示
 6. GUIパラメータ調整
 7. プリセット切り替え
-8. Velocity Vector / Contact Points表示
+8. Velocity Vector / Contact Points表示（Optional、未実装）
 
 ## 既知の制約
 
